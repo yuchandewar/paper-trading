@@ -2,7 +2,7 @@ import Order, { OrderStatus, TradeType } from '@/models/Order';
 import Position from '@/models/Position';
 import User from '@/models/User';
 import yahooFinanceStatic from 'yahoo-finance2';
-const YahooFinanceClass = yahooFinanceStatic.default || yahooFinanceStatic;
+const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
 const yahooFinance = new (YahooFinanceClass as any)();
 
 export async function evaluatePendingOrders(userId: string) {

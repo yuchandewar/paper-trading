@@ -6,7 +6,7 @@ import User from '@/models/User';
 import Order, { OrderStatus, OrderType, ProductType, TradeType } from '@/models/Order';
 import Position from '@/models/Position';
 import yahooFinanceStatic from 'yahoo-finance2';
-const YahooFinanceClass = yahooFinanceStatic.default || yahooFinanceStatic;
+const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
 const yahooFinance = new (YahooFinanceClass as any)();
 
 const LEVERAGE_MIS = 5; // 5x leverage for Intraday

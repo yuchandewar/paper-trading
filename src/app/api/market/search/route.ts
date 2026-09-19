@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import yahooFinanceStatic from 'yahoo-finance2';
-const YahooFinanceClass = yahooFinanceStatic.default || yahooFinanceStatic;
+const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
 const yahooFinance = new (YahooFinanceClass as any)();
 
 export async function GET(request: Request) {
@@ -18,8 +18,8 @@ export async function GET(request: Request) {
     
     // Filter out some noise if necessary, but Yahoo search usually brings equity first
     const quotes = results.quotes
-      .filter((q) => q.isYahooFinance)
-      .map((q) => ({
+      .filter((q: any) => q.isYahooFinance)
+      .map((q: any) => ({
         ticker: q.symbol,
         name: q.shortname || q.longname,
         exchange: q.exchDisp,

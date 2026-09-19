@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import yahooFinanceStatic from 'yahoo-finance2';
-const YahooFinanceClass = yahooFinanceStatic.default || yahooFinanceStatic;
+const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
 const yahooFinance = new (YahooFinanceClass as any)();
 
 export async function GET(request: Request) {
