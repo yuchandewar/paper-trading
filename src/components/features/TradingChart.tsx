@@ -7,32 +7,28 @@ interface TradingChartProps {
   ticker: string;
 }
 
+type TimeFrame = "1D" | "1W" | "1M" | "6M" | "1Y";
+
 export default function TradingChart({ ticker }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
+  const [timeframe, setTimeframe] = useState<TimeFrame>("1Y");
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const handleResize = () => {
-      chartRef.current?.applyOptions({ 
-         width: chartContainerRef.current?.clientWidth,
-         height: chartContainerRef.current?.clientHeight
-      });
-    };
-
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: "white" },
-        textColor: "black",
+        background: { type: ColorType.Solid, color: "transparent" },
+        textColor: "#333",
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       grid: {
-        vertLines: { color: "#e0e3eb" },
-        horzLines: { color: "#e0e3eb" },
+        vertLines: { color: "#f0f3fa" },
+        horzLines: { color: "#f0f3fa" },
       },
       timeScale: {
         timeVisible: true,
@@ -42,18 +38,26 @@ export default function TradingChart({ ticker }: TradingChartProps) {
     chartRef.current = chart;
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#26a69a",
+      upColor: "#00d09c",
       downColor: "#ef5350",
       borderVisible: false,
-      wickUpColor: "#26a69a",
+      wickUpColor: "#00d09c",
       wickDownColor: "#ef5350",
     });
     seriesRef.current = candlestickSeries;
 
-    window.addEventListener("resize", handleResize);
+    const handleResize = () => {
+      chart.applyOptions({ 
+         width: chartContainerRef.current?.clientWidth,
+         height: chartContainerRef.current?.clientHeight
+      });
+    };
+    
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chartContainerRef.current);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       chart.remove();
     };
   }, []);
@@ -62,36 +66,69 @@ export default function TradingChart({ ticker }: TradingChartProps) {
     if (!ticker || !seriesRef.current) return;
     
     setLoading(true);
-    // Fetch one year of data
+    
     const date = new Date();
-    date.setFullYear(date.getFullYear() - 1);
+    let interval = "1d";
+    
+    switch (timeframe) {
+      case "1D":
+        date.setDate(date.getDate() - 1);
+        interval = "5m";
+        break;
+      case "1W":
+        date.setDate(date.getDate() - 7);
+        interval = "15m";
+        break;
+      case "1M":
+        date.setMonth(date.getMonth() - 1);
+        interval = "1d";
+        break;
+      case "6M":
+        date.setMonth(date.getMonth() - 6);
+        interval = "1d";
+        break;
+      case "1Y":
+        date.setFullYear(date.getFullYear() - 1);
+        interval = "1d";
+        break;
+    }
+    
     const period1 = date.toISOString().split("T")[0];
 
-    fetch(`/api/market/history?ticker=${ticker}&period1=${period1}`)
+    fetch(`/api/market/history?ticker=${ticker}&period1=${period1}&interval=${interval}`)
       .then((res) => res.json())
       .then((resData) => {
         if (resData.data && resData.data.length > 0) {
-          // lightweight-charts requires strictly ascending dates and unique dates
-          const uniqueData = Array.from(new Map(resData.data.map((item: any) => [item.time, item])).values());
-          const sortedData = (uniqueData as any[]).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-          
-          seriesRef.current?.setData(sortedData);
+          seriesRef.current?.setData(resData.data);
           chartRef.current?.timeScale().fitContent();
+        } else {
+           seriesRef.current?.setData([]);
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
 
-  }, [ticker]);
+  }, [ticker, timeframe]);
 
   return (
     <div className="bg-white p-2 relative w-full h-full flex flex-col">
-      <div className="flex justify-between items-center mb-2 px-2">
-        <h3 className="text-sm font-semibold">{ticker.replace(".NS", "")}</h3>
+      <div className="flex justify-between items-center mb-2 px-2 border-b border-gray-100 pb-2">
+        <h3 className="text-sm font-bold text-gray-800">{ticker.replace(".NS", "")}</h3>
+        <div className="flex space-x-1">
+          {(["1D", "1W", "1M", "6M", "1Y"] as TimeFrame[]).map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`px-2 py-1 text-[10px] sm:text-xs font-semibold rounded transition-colors ${timeframe === tf ? 'bg-[#00d09c] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
       </div>
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
-          <span className="text-indigo-600 font-medium text-sm">Loading Chart...</span>
+          <span className="text-[#00d09c] font-bold text-sm">Loading Chart...</span>
         </div>
       )}
       <div ref={chartContainerRef} className="w-full flex-1" />
