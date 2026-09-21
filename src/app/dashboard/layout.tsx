@@ -1,4 +1,4 @@
-﻿import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -6,6 +6,10 @@ import LogoutButton from "@/components/shared/LogoutButton";
 import User from "@/models/User";
 import Position from "@/models/Position";
 import connectToDatabase from "@/lib/mongoose";
+import yahooFinanceStatic from 'yahoo-finance2';
+
+const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
+const yahooFinance = new (YahooFinanceClass as any)();
 
 export default async function DashboardLayout({
   children,
@@ -22,14 +26,43 @@ export default async function DashboardLayout({
   const user = await User.findById(session.user.id).select("balance");
   const availableMargin = user?.balance || 0;
 
-  // Calculate invested margin
+  // Calculate invested margin and Live PnL
   const activePositions = await Position.find({ user: session.user.id, netQuantity: { $ne: 0 } });
+  
   let investedMargin = 0;
+  let liveUnrealizedPnL = 0;
+  
   for (const pos of activePositions) {
     const margin = (pos.averagePrice * Math.abs(pos.netQuantity)) / (pos.product === 'MIS' ? 5 : 1);
     investedMargin += margin;
+    
+    try {
+      const quote = await yahooFinance.quote(pos.ticker);
+      const currentPrice = quote.regularMarketPrice;
+      if (currentPrice) {
+        const isBuy = pos.netQuantity > 0;
+        const pnlPerShare = isBuy ? (currentPrice - pos.averagePrice) : (pos.averagePrice - currentPrice);
+        liveUnrealizedPnL += (pnlPerShare * Math.abs(pos.netQuantity));
+      }
+    } catch (e) {
+      console.error("Failed to fetch quote for", pos.ticker);
+    }
   }
   
+  // Calculate Today's Realized PnL (from positions modified today)
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const updatedPositions = await Position.find({ 
+    user: session.user.id, 
+    updatedAt: { $gte: startOfDay } 
+  });
+  
+  let todayRealizedPnL = 0;
+  for (const pos of updatedPositions) {
+    todayRealizedPnL += pos.realizedPnL;
+  }
+  
+  const totalPnL = liveUnrealizedPnL + todayRealizedPnL;
   const totalBalance = availableMargin + investedMargin;
 
   return (
@@ -58,7 +91,14 @@ export default async function DashboardLayout({
             </div>
             {/* Navbar Right */}
             <div className="flex items-center space-x-4 sm:space-x-6 h-full">
-              <div className="flex flex-col sm:flex-row sm:space-x-4 text-xs sm:text-sm font-medium">
+              <div className="flex flex-col sm:flex-row sm:space-x-4 text-xs sm:text-sm font-medium items-center">
+                <div>
+                  <span className="hidden sm:inline text-gray-500 mr-1">Today PnL:</span>
+                  <span className={`font-bold ${totalPnL > 0 ? 'text-green-600' : totalPnL < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {totalPnL > 0 ? '+' : ''}₹{totalPnL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="hidden sm:block text-gray-300">|</div>
                 <div>
                   <span className="hidden sm:inline text-gray-500 mr-1">Bal:</span>
                   <span className="text-gray-900">₹{totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
