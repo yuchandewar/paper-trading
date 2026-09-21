@@ -30,7 +30,7 @@ export default async function DashboardLayout({
               <div className="text-lg font-bold text-indigo-600">
                 PaperTrade Pro
               </div>
-              <div className="hidden sm:flex sm:space-x-8 h-full">
+              <div className="flex space-x-4 sm:space-x-8 h-full items-center">
                 <Link
                   href="/dashboard"
                   className="border-indigo-500 text-gray-900 inline-flex items-center px-1 border-b-2 text-sm font-medium"
@@ -46,9 +46,9 @@ export default async function DashboardLayout({
               </div>
             </div>
             {/* Navbar Right */}
-            <div className="flex items-center space-x-6 h-full">
-              <div className="text-sm font-medium">
-                <span className="text-gray-500 mr-2">Margin:</span>
+            <div className="flex items-center space-x-4 sm:space-x-6 h-full">
+              <div className="text-xs sm:text-sm font-medium">
+                <span className="hidden sm:inline text-gray-500 mr-2">Margin:</span>
                 <span className="text-gray-900">₹{balance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
               </div>
               <div className="h-4 w-px bg-gray-300"></div>
@@ -57,7 +57,7 @@ export default async function DashboardLayout({
           </div>
         </div>
       </nav>
-      <main className="flex-1 w-full flex flex-col overflow-hidden">
+      <main className="flex-1 w-full flex flex-col overflow-y-auto overflow-x-hidden">
         {children}
       </main>
     </div>

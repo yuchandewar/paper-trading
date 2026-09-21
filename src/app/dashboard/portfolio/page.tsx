@@ -349,15 +349,15 @@ export default function PortfolioPage() {
         const profitMargin = investedMargin > 0 ? ((unrealizedPnL / investedMargin) * 100).toFixed(2) : 0;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-none">
                 <h3 className="text-lg font-bold text-gray-900">{selectedPosition.ticker.replace(".NS", "")} Details</h3>
                 <button onClick={() => setSelectedPosition(null)} className="text-gray-400 hover:text-gray-600">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500 block">Product</span>
