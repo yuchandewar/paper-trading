@@ -5,11 +5,29 @@ import yahooFinanceStatic from 'yahoo-finance2';
 const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
 const yahooFinance = new (YahooFinanceClass as any)();
 
+const calcTriggerPrice = (pos: any, isSl: boolean) => {
+  const config = isSl ? pos.stopLoss : pos.target;
+  if (!config || !config.value) return null;
+  const isBuy = pos.netQuantity > 0;
+  const avg = pos.averagePrice;
+  const val = config.value;
+  
+  if (config.type === 'VALUE') {
+    return isBuy 
+      ? (isSl ? avg - val : avg + val)
+      : (isSl ? avg + val : avg - val);
+  } else { // PERCENTAGE
+    const offset = avg * (val / 100);
+    return isBuy 
+      ? (isSl ? avg - offset : avg + offset)
+      : (isSl ? avg + offset : avg - offset);
+  }
+};
+
 export async function evaluatePendingOrders(userId: string) {
   try {
+    // 1. Evaluate pending limit orders
     const pendingOrders = await Order.find({ user: userId, status: OrderStatus.PENDING });
-    if (pendingOrders.length === 0) return;
-
     for (const order of pendingOrders) {
       try {
         const quote = await yahooFinance.quote(order.ticker);
@@ -24,7 +42,6 @@ export async function evaluatePendingOrders(userId: string) {
         }
 
         if (execute) {
-          // Execute the order (similar logic to place/route.ts but simpler for this mock)
           const user = await User.findById(userId);
           if (!user) continue;
 
@@ -75,6 +92,81 @@ export async function evaluatePendingOrders(userId: string) {
         console.error(`Error evaluating order ${order._id}:`, e);
       }
     }
+
+    // 2. Evaluate active positions for SL/Target hits
+    const activePositions = await Position.find({ user: userId, netQuantity: { $ne: 0 } });
+    for (const pos of activePositions) {
+      if (!pos.stopLoss && !pos.target) continue;
+
+      try {
+        const quote = await yahooFinance.quote(pos.ticker);
+        const currentPrice = quote.regularMarketPrice;
+        if (!currentPrice) continue;
+
+        const isBuy = pos.netQuantity > 0;
+        let executePrice = null;
+        let triggerReason = "";
+
+        // Check SL
+        const slPrice = calcTriggerPrice(pos, true);
+        if (slPrice !== null) {
+          if ((isBuy && currentPrice <= slPrice) || (!isBuy && currentPrice >= slPrice)) {
+            executePrice = currentPrice; // Market exit
+            triggerReason = "STOPLOSS";
+          }
+        }
+
+        // Check Target
+        if (executePrice === null) {
+          const tgtPrice = calcTriggerPrice(pos, false);
+          if (tgtPrice !== null) {
+            if ((isBuy && currentPrice >= tgtPrice) || (!isBuy && currentPrice <= tgtPrice)) {
+              executePrice = currentPrice;
+              triggerReason = "TARGET";
+            }
+          }
+        }
+
+        if (executePrice !== null) {
+          // Execute exit
+          const user = await User.findById(userId);
+          if (!user) continue;
+          
+          const exitQuantity = Math.abs(pos.netQuantity);
+          const pnlPerShare = isBuy ? (executePrice - pos.averagePrice) : (pos.averagePrice - executePrice);
+          const realizedPnL = exitQuantity * pnlPerShare;
+          
+          pos.realizedPnL += realizedPnL;
+          user.balance += realizedPnL;
+          pos.netQuantity = 0; // Completely exit
+          pos.stopLoss = undefined; // Clear SL/TGT
+          pos.target = undefined;
+          
+          await pos.save();
+          await user.save();
+          
+          // Log an exit order for history
+          const exitOrder = new Order({
+            user: userId,
+            ticker: pos.ticker,
+            type: isBuy ? TradeType.SELL : TradeType.BUY,
+            product: pos.product,
+            orderType: "MARKET",
+            quantity: exitQuantity,
+            price: executePrice,
+            executionPrice: executePrice,
+            status: OrderStatus.EXECUTED
+          });
+          await exitOrder.save();
+          
+          console.log(`Closed position ${pos.ticker} due to ${triggerReason} hit at ${executePrice}`);
+        }
+
+      } catch (e) {
+        console.error(`Error evaluating position SL/TGT for ${pos._id}:`, e);
+      }
+    }
+
   } catch (error) {
     console.error("Error in evaluator:", error);
   }
