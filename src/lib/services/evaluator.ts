@@ -144,8 +144,11 @@ export async function evaluatePendingOrders(userId: string) {
           const pnlPerShare = isBuy ? (executePrice - pos.averagePrice) : (pos.averagePrice - executePrice);
           const realizedPnL = exitQuantity * pnlPerShare;
           
+          const leverage = pos.product === 'MIS' ? 5 : 1;
+          const releasedMargin = (exitQuantity * pos.averagePrice) / leverage;
+          
           pos.realizedPnL += realizedPnL;
-          user.balance += realizedPnL;
+          user.balance += (realizedPnL + releasedMargin);
           pos.netQuantity = 0; // Completely exit
           pos.stopLoss = undefined; // Clear SL/TGT
           pos.target = undefined;

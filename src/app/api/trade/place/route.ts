@@ -106,10 +106,13 @@ export async function POST(request: Request) {
     }
 
     // 4. Update or Create Position (for MARKET orders)
+    let originalAveragePrice = 0;
     if (position) {
+       originalAveragePrice = position.averagePrice;
+       
        if (isClosingTrade) {
            const closedQty = Math.min(Math.abs(currentNetQty), quantity);
-           const pnlPerShare = isBuy ? (position.averagePrice - currentPrice) : (currentPrice - position.averagePrice);
+           const pnlPerShare = isBuy ? (originalAveragePrice - currentPrice) : (currentPrice - originalAveragePrice);
            realizedPnL = closedQty * pnlPerShare;
            position.realizedPnL += realizedPnL;
            user.balance += realizedPnL;
@@ -117,7 +120,7 @@ export async function POST(request: Request) {
        
        if (!isClosingTrade) {
           const totalQty = Math.abs(currentNetQty) + quantity;
-          const totalCost = (Math.abs(currentNetQty) * position.averagePrice) + (quantity * currentPrice);
+          const totalCost = (Math.abs(currentNetQty) * originalAveragePrice) + (quantity * currentPrice);
           position.averagePrice = totalCost / totalQty;
        } else if (Math.abs(quantity) > Math.abs(currentNetQty)) {
           position.averagePrice = currentPrice;
@@ -158,7 +161,7 @@ export async function POST(request: Request) {
     } else {
         // Release margin for closed portion
         const closedQty = Math.min(Math.abs(currentNetQty), quantity);
-        const marginReleased = (closedQty * position.averagePrice) / leverage;
+        const marginReleased = (closedQty * originalAveragePrice) / leverage;
         user.balance += marginReleased;
         
         // If they reversed and went the other way (e.g. had 10, sold 15 -> -5)
