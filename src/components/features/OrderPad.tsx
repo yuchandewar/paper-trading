@@ -149,23 +149,23 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
 
   return (
     <div className="bg-white flex flex-col h-full">
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-100">
         <button
-          className={`flex-1 py-2 text-sm font-semibold ${type === "BUY" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 py-3 text-sm font-bold transition-colors ${type === "BUY" ? "text-[#00d09c] border-b-2 border-[#00d09c]" : "text-gray-400 hover:text-gray-600"}`}
           onClick={() => setType("BUY")}
         >
           BUY
         </button>
         <button
-          className={`flex-1 py-2 text-sm font-semibold ${type === "SELL" ? "text-red-600 border-b-2 border-red-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 py-3 text-sm font-bold transition-colors ${type === "SELL" ? "text-red-500 border-b-2 border-red-500" : "text-gray-400 hover:text-gray-600"}`}
           onClick={() => setType("SELL")}
         >
           SELL
         </button>
       </div>
 
-      <div className="p-3 flex-1 overflow-y-auto">
-        <div className="flex justify-between items-end mb-4">
+      <div className="p-4 flex-1 overflow-y-auto">
+        <div className="flex justify-between items-end mb-5">
           <h3 className="text-sm font-bold text-gray-800">{ticker.replace(".NS", "")}</h3>
           <div className="text-right">
             <span className="text-sm font-semibold block">{quote ? `₹${quote.price.toFixed(2)}` : "--"}</span>
@@ -325,17 +325,17 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
         </div>
       </div>
 
-      <div className="p-3 border-t border-gray-200 bg-gray-50">
-        <div className="flex justify-between items-center text-xs mb-3">
-          <span className="text-gray-500">Margin Required:</span>
-          <span className="font-semibold text-gray-900">₹{marginRequired.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+      <div className="p-4 border-t border-gray-100 bg-white">
+        <div className="flex justify-between items-center text-xs mb-4">
+          <span className="text-gray-500 font-medium">Margin Required:</span>
+          <span className="font-bold text-gray-900 text-sm">₹{marginRequired.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
         </div>
         
         <button
           onClick={handleTrade}
           disabled={loading || !quote}
-          className={`w-full py-2 px-4 rounded text-white text-sm font-bold shadow-sm transition-colors ${
-            type === "BUY" ? "bg-blue-600 hover:bg-blue-700" : "bg-red-600 hover:bg-red-700"
+          className={`w-full py-3 px-4 rounded-lg text-white text-sm font-bold shadow-sm transition-colors ${
+            type === "BUY" ? "bg-[#00d09c] hover:bg-[#00b386]" : "bg-red-500 hover:bg-red-600"
           } ${loading || !quote ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           {loading ? "Processing..." : type}

@@ -66,35 +66,35 @@ export default async function DashboardLayout({
   const totalBalance = availableMargin + investedMargin;
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      <nav className="bg-white border-b border-gray-200 flex-none">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-12">
+    <div className="h-screen bg-[#f8f9fa] flex flex-col overflow-hidden font-sans">
+      <nav className="bg-white border-b border-gray-200 flex-none sticky top-0 z-50">
+        <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex justify-between h-16">
             <div className="flex items-center space-x-8">
-              <div className="text-lg font-bold text-indigo-600">
-                PaperTrade Pro
+              <div className="text-2xl font-extrabold text-[#00d09c] tracking-tight">
+                GrowwClone
               </div>
-              <div className="flex space-x-4 sm:space-x-8 h-full items-center">
+              <div className="flex space-x-6 h-full items-center">
                 <Link
                   href="/dashboard"
-                  className="border-indigo-500 text-gray-900 inline-flex items-center px-1 border-b-2 text-sm font-medium"
+                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center px-1 border-b-2 border-transparent hover:border-[#00d09c] text-sm font-medium transition-colors"
                 >
-                  Dashboard
+                  Explore
                 </Link>
                 <Link
                   href="/dashboard/portfolio"
-                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 border-b-2 text-sm font-medium"
+                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center px-1 border-b-2 border-transparent hover:border-[#00d09c] text-sm font-medium transition-colors"
                 >
-                  Portfolio
+                  Investments
                 </Link>
               </div>
             </div>
             {/* Navbar Right */}
             <div className="flex items-center space-x-4 sm:space-x-6 h-full">
-              <div className="flex flex-col sm:flex-row sm:space-x-4 text-xs sm:text-sm font-medium items-center">
+              <div className="flex flex-col sm:flex-row sm:space-x-4 text-xs sm:text-sm font-medium items-center bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
                 <div>
-                  <span className="hidden sm:inline text-gray-500 mr-1">Today PnL:</span>
-                  <span className={`font-bold ${totalPnL > 0 ? 'text-green-600' : totalPnL < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                  <span className="hidden sm:inline text-gray-500 mr-1">Day PnL:</span>
+                  <span className={`font-bold ${totalPnL > 0 ? 'text-[#00d09c]' : totalPnL < 0 ? 'text-red-500' : 'text-gray-900'}`}>
                     {totalPnL > 0 ? '+' : ''}₹{totalPnL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -109,7 +109,6 @@ export default async function DashboardLayout({
                   <span className="text-gray-900">₹{availableMargin.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
-              <div className="h-4 w-px bg-gray-300"></div>
               <LogoutButton />
             </div>
           </div>
