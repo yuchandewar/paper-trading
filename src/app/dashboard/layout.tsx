@@ -68,48 +68,55 @@ export default async function DashboardLayout({
   return (
     <div className="h-screen bg-[#f8f9fa] flex flex-col overflow-hidden font-sans">
       <nav className="bg-white border-b border-gray-200 flex-none sticky top-0 z-50">
-        <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <div className="text-2xl font-extrabold text-[#00d09c] tracking-tight">
+        <div className="px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row justify-between items-center py-2 sm:py-0 sm:h-16 gap-2 sm:gap-0">
+            {/* Top Row: Logo & Links */}
+            <div className="flex items-center justify-between w-full sm:w-auto space-x-4 sm:space-x-8">
+              <div className="text-xl sm:text-2xl font-extrabold text-[#00d09c] tracking-tight">
                 GrowwClone
               </div>
-              <div className="flex space-x-6 h-full items-center">
+              <div className="flex space-x-4 sm:space-x-6 h-full items-center">
                 <Link
                   href="/dashboard"
-                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center px-1 border-b-2 border-transparent hover:border-[#00d09c] text-sm font-medium transition-colors"
+                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center py-1 sm:py-5 border-b-2 border-transparent hover:border-[#00d09c] text-xs sm:text-sm font-medium transition-colors"
                 >
                   Explore
                 </Link>
                 <Link
                   href="/dashboard/portfolio"
-                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center px-1 border-b-2 border-transparent hover:border-[#00d09c] text-sm font-medium transition-colors"
+                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center py-1 sm:py-5 border-b-2 border-transparent hover:border-[#00d09c] text-xs sm:text-sm font-medium transition-colors"
                 >
                   Investments
                 </Link>
               </div>
+              <div className="sm:hidden block">
+                <LogoutButton />
+              </div>
             </div>
-            {/* Navbar Right */}
-            <div className="flex items-center space-x-4 sm:space-x-6 h-full">
-              <div className="flex flex-col sm:flex-row sm:space-x-4 text-xs sm:text-sm font-medium items-center bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
+            
+            {/* Bottom Row (Mobile) / Right Side (Desktop): Stats & Logout */}
+            <div className="flex items-center space-x-2 sm:space-x-6 w-full sm:w-auto">
+              <div className="flex flex-1 sm:flex-none overflow-x-auto hide-scrollbar space-x-3 sm:space-x-4 text-xs sm:text-sm font-medium items-center bg-gray-50 px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-gray-100 whitespace-nowrap">
                 <div>
-                  <span className="hidden sm:inline text-gray-500 mr-1">Day PnL:</span>
+                  <span className="text-gray-500 mr-1">Day PnL:</span>
                   <span className={`font-bold ${totalPnL > 0 ? 'text-[#00d09c]' : totalPnL < 0 ? 'text-red-500' : 'text-gray-900'}`}>
                     {totalPnL > 0 ? '+' : ''}₹{totalPnL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="hidden sm:block text-gray-300">|</div>
+                <div className="text-gray-300">|</div>
                 <div>
-                  <span className="hidden sm:inline text-gray-500 mr-1">Bal:</span>
+                  <span className="text-gray-500 mr-1">Bal:</span>
                   <span className="text-gray-900">₹{totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="hidden sm:block text-gray-300">|</div>
+                <div className="text-gray-300">|</div>
                 <div>
-                  <span className="hidden sm:inline text-gray-500 mr-1">Margin:</span>
+                  <span className="text-gray-500 mr-1">Margin:</span>
                   <span className="text-gray-900">₹{availableMargin.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
-              <LogoutButton />
+              <div className="hidden sm:block">
+                <LogoutButton />
+              </div>
             </div>
           </div>
         </div>
