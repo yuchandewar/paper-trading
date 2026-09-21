@@ -10,6 +10,7 @@ export interface IPosition extends Document {
   realizedPnL: number; // PnL from closed partial or full position
   stopLoss?: { type: string, value: number };
   target?: { type: string, value: number };
+  autoExitAt?: Date; // Timer for auto square-off
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,7 @@ const PositionSchema = new Schema<IPosition>(
     realizedPnL: { type: Number, default: 0 },
     stopLoss: { type: Object },
     target: { type: Object },
+    autoExitAt: { type: Date },
   },
   {
     timestamps: true,

@@ -20,7 +20,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { ticker, type, product, orderType, quantity, price, stopLoss, target } = body;
+    const { ticker, type, product, orderType, quantity, price, stopLoss, target, autoExitMinutes } = body;
+
+    let autoExitAt: Date | undefined = undefined;
+    if (autoExitMinutes && typeof autoExitMinutes === 'number' && autoExitMinutes > 0) {
+      autoExitAt = new Date(Date.now() + autoExitMinutes * 60000);
+    }
 
     if (!ticker || !type || !product || !orderType || !quantity || quantity <= 0) {
       return NextResponse.json({ error: 'Invalid order parameters' }, { status: 400 });
@@ -125,6 +130,7 @@ export async function POST(request: Request) {
        // Update SL and Target if provided
        if (stopLoss) position.stopLoss = stopLoss;
        if (target) position.target = target;
+       if (autoExitAt) position.autoExitAt = autoExitAt;
        
        await position.save();
     } else {
@@ -137,6 +143,7 @@ export async function POST(request: Request) {
            realizedPnL: 0,
            stopLoss,
            target,
+           autoExitAt
        });
        await position.save();
     }

@@ -13,16 +13,20 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
   const [type, setType] = useState("BUY");
   const [orderType, setOrderType] = useState("MARKET");
   const [quantity, setQuantity] = useState(1);
+  const [capital, setCapital] = useState("");
   const [limitPrice, setLimitPrice] = useState("");
   
   // Advanced Order states
   const [hasStoploss, setHasStoploss] = useState(false);
-  const [slType, setSlType] = useState<"VALUE" | "PERCENTAGE">("PERCENTAGE");
-  const [slValue, setSlValue] = useState("1"); // 1% or 1 Rs
+  const [slType, setSlType] = useState<"VALUE" | "PERCENTAGE" | "TOTAL_AMOUNT">("PERCENTAGE");
+  const [slValue, setSlValue] = useState("1");
   
   const [hasTarget, setHasTarget] = useState(false);
-  const [targetType, setTargetType] = useState<"VALUE" | "PERCENTAGE">("PERCENTAGE");
-  const [targetValue, setTargetValue] = useState("2"); // 2% or 2 Rs
+  const [targetType, setTargetType] = useState<"VALUE" | "PERCENTAGE" | "TOTAL_AMOUNT">("PERCENTAGE");
+  const [targetValue, setTargetValue] = useState("2");
+  
+  const [hasAutoExit, setHasAutoExit] = useState(false);
+  const [autoExitMinutes, setAutoExitMinutes] = useState("15");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,33 +40,97 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
           if (!res.ok) throw new Error("Failed");
           return res.json();
         })
-        .then((data) => setQuote(data))
+        .then((data) => {
+           setQuote(data);
+           setLimitPrice("");
+        })
         .catch(console.error);
     }
   }, [ticker]);
 
-  const handleTrade = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const calcPrice = orderType === "LIMIT" && limitPrice ? parseFloat(limitPrice) : (quote?.price || 0);
+  const leverage = product === "MIS" ? 5 : 1;
+  const marginRequired = ((calcPrice * quantity) / leverage) || 0;
+
+  // Handle Capital Input
+  const handleCapitalChange = (val: string) => {
+    setCapital(val);
+    if (!calcPrice) return;
+    const cap = parseFloat(val);
+    if (isNaN(cap)) {
+      setQuantity(1);
+      return;
+    }
+    const calculatedQty = Math.floor((cap * leverage) / calcPrice);
+    setQuantity(calculatedQty > 0 ? calculatedQty : 1);
+  };
+
+  const handleQtyChange = (val: string) => {
+    const q = parseInt(val);
+    setQuantity(isNaN(q) ? 1 : q);
+    setCapital(""); // Clear custom capital override
+  };
+
+  // Calculate projected PnL for SL/Target
+  const getExpectedPnL = (isSl: boolean, configType: string, configValueStr: string) => {
+    if (!calcPrice || !quantity) return 0;
+    const val = parseFloat(configValueStr);
+    if (isNaN(val) || val <= 0) return 0;
+    
+    if (configType === "TOTAL_AMOUNT") {
+      return val;
+    } else if (configType === "PERCENTAGE") {
+      const priceOffset = calcPrice * (val / 100);
+      return priceOffset * quantity;
+    } else { // VALUE (Per share)
+      return val * quantity;
+    }
+  };
+
+  const slExpectedPnL = hasStoploss ? getExpectedPnL(true, slType, slValue) : 0;
+  const targetExpectedPnL = hasTarget ? getExpectedPnL(false, targetType, targetValue) : 0;
+
+  const handleTrade = async () => {
     setLoading(true);
     setError("");
     setSuccessMsg("");
 
     try {
-      const payload = {
-          ticker,
-          type,
-          product,
-          orderType,
-          quantity,
-          price: orderType === "LIMIT" ? parseFloat(limitPrice) : quote?.price,
-          stopLoss: hasStoploss ? { type: slType, value: parseFloat(slValue) } : undefined,
-          target: hasTarget ? { type: targetType, value: parseFloat(targetValue) } : undefined,
-      };
+      const priceToUse = orderType === "LIMIT" && limitPrice ? parseFloat(limitPrice) : quote.price;
+      
+      // Convert TOTAL_AMOUNT to per-share VALUE for the backend API
+      let finalSl = undefined;
+      if (hasStoploss && parseFloat(slValue) > 0) {
+        if (slType === "TOTAL_AMOUNT") {
+          finalSl = { type: "VALUE", value: parseFloat(slValue) / quantity };
+        } else {
+          finalSl = { type: slType, value: parseFloat(slValue) };
+        }
+      }
+
+      let finalTarget = undefined;
+      if (hasTarget && parseFloat(targetValue) > 0) {
+        if (targetType === "TOTAL_AMOUNT") {
+          finalTarget = { type: "VALUE", value: parseFloat(targetValue) / quantity };
+        } else {
+          finalTarget = { type: targetType, value: parseFloat(targetValue) };
+        }
+      }
 
       const res = await fetch("/api/trade/place", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ticker,
+          product,
+          type,
+          orderType,
+          quantity,
+          price: priceToUse,
+          stopLoss: finalSl,
+          target: finalTarget,
+          autoExitMinutes: hasAutoExit ? parseInt(autoExitMinutes) : undefined
+        }),
       });
 
       const data = await res.json();
@@ -78,9 +146,6 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
       setLoading(false);
     }
   };
-
-  const calcPrice = orderType === "LIMIT" && limitPrice ? parseFloat(limitPrice) : (quote?.price || 0);
-  const marginRequired = ((calcPrice * quantity) / (product === "MIS" ? 5 : 1));
 
   return (
     <div className="bg-white flex flex-col h-full">
@@ -145,24 +210,36 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
                 required
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value))}
+                onChange={(e) => handleQtyChange(e.target.value)}
               />
             </div>
-            {orderType === "LIMIT" && (
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  required
-                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  value={limitPrice}
-                  onChange={(e) => setLimitPrice(e.target.value)}
-                  placeholder={quote?.price?.toString() || ""}
-                />
-              </div>
-            )}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Capital (₹)</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={capital}
+                onChange={(e) => handleCapitalChange(e.target.value)}
+                placeholder="Auto Qty"
+              />
+            </div>
           </div>
+          
+          {orderType === "LIMIT" && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Limit Price (₹)</label>
+              <input
+                type="number"
+                step="0.05"
+                required
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={limitPrice}
+                onChange={(e) => setLimitPrice(e.target.value)}
+                placeholder={quote?.price?.toString() || ""}
+              />
+            </div>
+          )}
 
           {/* Advanced Bracket Order Options */}
           <div className="mt-4 pt-3 border-t border-gray-200">
@@ -170,10 +247,15 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
             
             {/* Stop Loss Toggle */}
             <div className="mb-2">
-              <label className="flex items-center space-x-2 text-xs font-medium text-gray-700 cursor-pointer">
-                <input type="checkbox" checked={hasStoploss} onChange={(e) => setHasStoploss(e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                <span>Stoploss</span>
-              </label>
+              <div className="flex justify-between">
+                <label className="flex items-center space-x-2 text-xs font-medium text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={hasStoploss} onChange={(e) => setHasStoploss(e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span>Stoploss</span>
+                </label>
+                {hasStoploss && slExpectedPnL > 0 && (
+                  <span className="text-xs text-red-600 font-medium">Risk: -₹{slExpectedPnL.toFixed(2)}</span>
+                )}
+              </div>
               {hasStoploss && (
                 <div className="flex gap-2 mt-2">
                   <div className="w-1/3">
@@ -182,7 +264,8 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
                        value={slType} onChange={(e) => setSlType(e.target.value as any)}
                      >
                        <option value="PERCENTAGE">%</option>
-                       <option value="VALUE">₹</option>
+                       <option value="VALUE">₹/shr</option>
+                       <option value="TOTAL_AMOUNT">Total ₹</option>
                      </select>
                   </div>
                   <div className="flex-1 relative">
@@ -193,11 +276,16 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
             </div>
 
             {/* Target Toggle */}
-            <div>
-              <label className="flex items-center space-x-2 text-xs font-medium text-gray-700 cursor-pointer">
-                <input type="checkbox" checked={hasTarget} onChange={(e) => setHasTarget(e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                <span>Target</span>
-              </label>
+            <div className="mb-2">
+              <div className="flex justify-between">
+                <label className="flex items-center space-x-2 text-xs font-medium text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={hasTarget} onChange={(e) => setHasTarget(e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span>Target</span>
+                </label>
+                {hasTarget && targetExpectedPnL > 0 && (
+                  <span className="text-xs text-green-600 font-medium">Reward: +₹{targetExpectedPnL.toFixed(2)}</span>
+                )}
+              </div>
               {hasTarget && (
                 <div className="flex gap-2 mt-2">
                   <div className="w-1/3">
@@ -206,12 +294,29 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
                        value={targetType} onChange={(e) => setTargetType(e.target.value as any)}
                      >
                        <option value="PERCENTAGE">%</option>
-                       <option value="VALUE">₹</option>
+                       <option value="VALUE">₹/shr</option>
+                       <option value="TOTAL_AMOUNT">Total ₹</option>
                      </select>
                   </div>
                   <div className="flex-1 relative">
                     <input type="number" step="0.1" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none" placeholder="0" />
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Auto Exit Timer */}
+            <div>
+              <div className="flex justify-between">
+                <label className="flex items-center space-x-2 text-xs font-medium text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={hasAutoExit} onChange={(e) => setHasAutoExit(e.target.checked)} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span>Auto-Exit Timer</span>
+                </label>
+              </div>
+              {hasAutoExit && (
+                <div className="flex gap-2 mt-2 items-center">
+                  <input type="number" min="1" value={autoExitMinutes} onChange={(e) => setAutoExitMinutes(e.target.value)} className="w-20 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none" placeholder="15" />
+                  <span className="text-xs text-gray-500 font-medium">Minutes from now</span>
                 </div>
               )}
             </div>
@@ -222,7 +327,7 @@ export default function OrderPad({ ticker, onTradeSuccess }: OrderPadProps) {
 
       <div className="p-3 border-t border-gray-200 bg-gray-50">
         <div className="flex justify-between items-center text-xs mb-3">
-          <span className="text-gray-500">Margin:</span>
+          <span className="text-gray-500">Margin Required:</span>
           <span className="font-semibold text-gray-900">₹{marginRequired.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
         </div>
         

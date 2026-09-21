@@ -96,7 +96,7 @@ export async function evaluatePendingOrders(userId: string) {
     // 2. Evaluate active positions for SL/Target hits
     const activePositions = await Position.find({ user: userId, netQuantity: { $ne: 0 } });
     for (const pos of activePositions) {
-      if (!pos.stopLoss && !pos.target) continue;
+      if (!pos.stopLoss && !pos.target && !pos.autoExitAt) continue;
 
       try {
         const quote = await yahooFinance.quote(pos.ticker);
@@ -124,6 +124,14 @@ export async function evaluatePendingOrders(userId: string) {
               executePrice = currentPrice;
               triggerReason = "TARGET";
             }
+          }
+        }
+
+        // Check Time-based Auto Exit
+        if (executePrice === null && pos.autoExitAt) {
+          if (new Date() >= pos.autoExitAt) {
+            executePrice = currentPrice;
+            triggerReason = "TIME_LIMIT";
           }
         }
 
