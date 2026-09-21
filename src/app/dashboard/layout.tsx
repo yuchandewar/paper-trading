@@ -1,9 +1,10 @@
-import { getServerSession } from "next-auth/next";
+﻿import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "@/components/shared/LogoutButton";
 import User from "@/models/User";
+import Position from "@/models/Position";
 import connectToDatabase from "@/lib/mongoose";
 
 export default async function DashboardLayout({
@@ -19,7 +20,17 @@ export default async function DashboardLayout({
 
   await connectToDatabase();
   const user = await User.findById(session.user.id).select("balance");
-  const balance = user?.balance || 0;
+  const availableMargin = user?.balance || 0;
+
+  // Calculate invested margin
+  const activePositions = await Position.find({ user: session.user.id, netQuantity: { $ne: 0 } });
+  let investedMargin = 0;
+  for (const pos of activePositions) {
+    const margin = (pos.averagePrice * Math.abs(pos.netQuantity)) / (pos.product === 'MIS' ? 5 : 1);
+    investedMargin += margin;
+  }
+  
+  const totalBalance = availableMargin + investedMargin;
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -47,9 +58,16 @@ export default async function DashboardLayout({
             </div>
             {/* Navbar Right */}
             <div className="flex items-center space-x-4 sm:space-x-6 h-full">
-              <div className="text-xs sm:text-sm font-medium">
-                <span className="hidden sm:inline text-gray-500 mr-2">Margin:</span>
-                <span className="text-gray-900">₹{balance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+              <div className="flex flex-col sm:flex-row sm:space-x-4 text-xs sm:text-sm font-medium">
+                <div>
+                  <span className="hidden sm:inline text-gray-500 mr-1">Bal:</span>
+                  <span className="text-gray-900">₹{totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="hidden sm:block text-gray-300">|</div>
+                <div>
+                  <span className="hidden sm:inline text-gray-500 mr-1">Margin:</span>
+                  <span className="text-gray-900">₹{availableMargin.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                </div>
               </div>
               <div className="h-4 w-px bg-gray-300"></div>
               <LogoutButton />
