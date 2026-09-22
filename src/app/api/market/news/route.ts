@@ -12,7 +12,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await yahooFinance.search(ticker, { newsCount: 5 });
+    // Yahoo Finance often doesn't return news for .NS or .BO suffixes directly.
+    const searchTicker = ticker.replace('.NS', '').replace('.BO', '');
+    const results = await yahooFinance.search(searchTicker, { newsCount: 5 });
     return NextResponse.json({ news: results.news });
   } catch (error: any) {
     console.error('Error fetching news:', error);

@@ -25,30 +25,30 @@ export default function NewsFeed({ ticker }: NewsFeedProps) {
   }, [ticker]);
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 h-[300px] flex flex-col">
+    <div className="flex flex-col h-full">
       <h3 className="text-lg font-semibold mb-3 border-b pb-2">Latest News</h3>
       {loading ? (
-        <div className="flex-1 flex justify-center items-center text-sm text-gray-500">
+        <div className="flex-1 flex justify-center items-center text-sm text-gray-500 min-h-[100px]">
           Loading news...
         </div>
       ) : news.length === 0 ? (
-        <div className="flex-1 flex justify-center items-center text-sm text-gray-500">
+        <div className="flex-1 flex justify-center items-center text-sm text-gray-500 min-h-[100px]">
           No news found for {ticker.replace(".NS", "")}
         </div>
       ) : (
-        <ul className="flex-1 overflow-y-auto space-y-4">
+        <ul className="flex-1 overflow-y-auto space-y-4 pr-2">
           {news.map((item, idx) => (
             <li key={idx} className="text-sm">
               <a
                 href={item.link}
                 target="_blank"
                 rel="noreferrer"
-                className="font-medium text-indigo-600 hover:underline"
+                className="font-medium text-indigo-600 hover:underline line-clamp-2"
               >
                 {item.title}
               </a>
               <p className="text-xs text-gray-500 mt-1">
-                {item.publisher} &bull; {new Date(item.providerPublishTime * 1000).toLocaleString()}
+                {item.publisher} &bull; {new Date(item.providerPublishTime).toLocaleDateString()}
               </p>
             </li>
           ))}
