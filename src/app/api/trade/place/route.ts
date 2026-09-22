@@ -5,6 +5,7 @@ import connectToDatabase from '@/lib/mongoose';
 import User from '@/models/User';
 import Order, { OrderStatus, OrderType, ProductType, TradeType } from '@/models/Order';
 import Position from '@/models/Position';
+import Transaction, { TransactionType } from '@/models/Transaction';
 import yahooFinanceStatic from 'yahoo-finance2';
 const YahooFinanceClass = (yahooFinanceStatic as any).default || yahooFinanceStatic;
 const yahooFinance = new (YahooFinanceClass as any)();
@@ -35,6 +36,12 @@ export async function POST(request: Request) {
     const user = await User.findById(session.user.id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Calculate Brokerage
+    let brokerageFee = 0;
+    if (user.brokeragePlan === 'FLAT_20') {
+        brokerageFee = 20;
     }
 
     // 1. Fetch real-time price
@@ -68,9 +75,9 @@ export async function POST(request: Request) {
     // If it's a new position or adding to existing, check margin
     if (!isClosingTrade || Math.abs(quantity) > Math.abs(currentNetQty)) {
        const qtyToOpen = isClosingTrade ? quantity - Math.abs(currentNetQty) : quantity;
-       const marginNeeded = (qtyToOpen * currentPrice) / leverage;
+       const marginNeeded = (qtyToOpen * currentPrice) / leverage + brokerageFee;
        if (user.balance < marginNeeded) {
-           return NextResponse.json({ error: 'Insufficient margin' }, { status: 400 });
+           return NextResponse.json({ error: 'Insufficient margin including brokerage' }, { status: 400 });
        }
     }
 
@@ -152,12 +159,8 @@ export async function POST(request: Request) {
     }
 
     // 4. Update Margin (Balance)
-    // Simplified: we deduct margin for open positions and add for closed. 
-    // Here we will just update user balance by the realized PnL. The "balance" acts as net cash.
-    // Wait, in real trading, margin is blocked. We will subtract requiredMargin from balance.
-    // If closing, we release margin.
     if (!isClosingTrade) {
-        user.balance -= requiredMargin;
+        user.balance -= (requiredMargin + brokerageFee);
     } else {
         // Release margin for closed portion
         const closedQty = Math.min(Math.abs(currentNetQty), quantity);
@@ -170,9 +173,22 @@ export async function POST(request: Request) {
             const marginNeeded = (newQty * currentPrice) / leverage;
             user.balance -= marginNeeded;
         }
+        
+        // Deduct brokerage even if closing
+        user.balance -= brokerageFee;
     }
 
     await user.save();
+
+    if (brokerageFee > 0) {
+        await Transaction.create({
+            user: user._id,
+            type: TransactionType.BROKERAGE,
+            amount: brokerageFee,
+            description: `Brokerage fee for ${type} ${quantity} ${ticker}`,
+            balanceAfter: user.balance,
+        });
+    }
 
     // 5. Create Order Record
     const order = new Order({
@@ -186,6 +202,7 @@ export async function POST(request: Request) {
         executionPrice: currentPrice,
         status: OrderStatus.EXECUTED,
         marginBlocked: requiredMargin,
+        brokeragePaid: brokerageFee,
     });
     await order.save();
 

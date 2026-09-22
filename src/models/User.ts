@@ -6,6 +6,8 @@ export interface IUser extends Document {
   password?: string;
   balance: number;
   watchlist: string[];
+  avatar: string;
+  brokeragePlan: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,15 @@ const UserSchema = new Schema<IUser>(
     watchlist: {
       type: [String],
       default: ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS"],
+    },
+    avatar: {
+      type: String,
+      default: "default",
+    },
+    brokeragePlan: {
+      type: String,
+      enum: ["ZERO_FEE", "FLAT_20"],
+      default: "FLAT_20",
     },
   },
   {

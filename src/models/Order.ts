@@ -33,6 +33,7 @@ export interface IOrder extends Document {
   executionPrice?: number; // Actual price at which it was executed
   status: OrderStatus;
   marginBlocked: number; // Margin blocked for this order
+  brokeragePaid: number; // Commission paid for this order
   rejectReason?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +51,7 @@ const OrderSchema = new Schema<IOrder>(
     executionPrice: { type: Number, required: false },
     status: { type: String, enum: Object.values(OrderStatus), default: OrderStatus.PENDING },
     marginBlocked: { type: Number, required: true },
+    brokeragePaid: { type: Number, default: 0 },
     rejectReason: { type: String, required: false },
   },
   {

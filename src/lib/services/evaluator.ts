@@ -147,14 +147,28 @@ export async function evaluatePendingOrders(userId: string) {
           const leverage = pos.product === 'MIS' ? 5 : 1;
           const releasedMargin = (exitQuantity * pos.averagePrice) / leverage;
           
+          let brokerageFee = 0;
+          if (user.brokeragePlan === 'FLAT_20') brokerageFee = 20;
+
           pos.realizedPnL += realizedPnL;
-          user.balance += (realizedPnL + releasedMargin);
+          user.balance += (realizedPnL + releasedMargin - brokerageFee);
           pos.netQuantity = 0; // Completely exit
           pos.stopLoss = undefined; // Clear SL/TGT
           pos.target = undefined;
           
           await pos.save();
           await user.save();
+          
+          if (brokerageFee > 0) {
+              const { default: Transaction, TransactionType } = await import('@/models/Transaction');
+              await Transaction.create({
+                  user: user._id,
+                  type: TransactionType.BROKERAGE,
+                  amount: brokerageFee,
+                  description: `Brokerage fee for auto-exit of ${pos.ticker}`,
+                  balanceAfter: user.balance,
+              });
+          }
           
           // Log an exit order for history
           const exitOrder = new Order({
@@ -166,7 +180,8 @@ export async function evaluatePendingOrders(userId: string) {
             quantity: exitQuantity,
             price: executePrice,
             executionPrice: executePrice,
-            status: OrderStatus.EXECUTED
+            status: OrderStatus.EXECUTED,
+            brokeragePaid: brokerageFee,
           });
           await exitOrder.save();
           

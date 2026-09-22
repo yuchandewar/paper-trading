@@ -88,6 +88,12 @@ export default async function DashboardLayout({
                 >
                   Investments
                 </Link>
+                <Link
+                  href="/dashboard/profile"
+                  className="text-gray-800 hover:text-[#00d09c] inline-flex items-center py-1 sm:py-5 border-b-2 border-transparent hover:border-[#00d09c] text-xs sm:text-sm font-medium transition-colors"
+                >
+                  Profile
+                </Link>
               </div>
               <div className="sm:hidden block">
                 <LogoutButton />
