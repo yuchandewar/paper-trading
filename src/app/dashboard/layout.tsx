@@ -73,7 +73,7 @@ export default async function DashboardLayout({
             {/* Top Row: Logo & Links */}
             <div className="flex items-center justify-between w-full sm:w-auto space-x-4 sm:space-x-8">
               <div className="text-xl sm:text-2xl font-extrabold text-[#00d09c] tracking-tight">
-                GrowwClone
+                TradeNow
               </div>
               <div className="flex space-x-4 sm:space-x-6 h-full items-center">
                 <Link
