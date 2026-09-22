@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Wallet, History, Settings, TrendingDown, TrendingUp, Plus, Minus } from "lucide-react";
+import { User, Wallet, History, Settings, TrendingDown, TrendingUp, Plus, Minus, AlertTriangle } from "lucide-react";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -14,6 +14,12 @@ export default function ProfilePage() {
   const [amount, setAmount] = useState("");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
+
+  // Reset modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   const fetchData = async () => {
     try {
@@ -56,6 +62,30 @@ export default function ProfilePage() {
       setError(e.message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleAccountReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError("");
+    setResetting(true);
+    try {
+      const res = await fetch("/api/profile/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPassword })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      setShowResetModal(false);
+      setResetPassword("");
+      fetchData(); // refresh all data
+      alert("Account successfully reset!");
+    } catch (e: any) {
+      setResetError(e.message);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -110,7 +140,6 @@ export default function ProfilePage() {
             <div className="p-6 text-center">
                <div className="text-sm text-gray-500 mb-1">Available Margin</div>
                <div className="text-3xl font-bold text-gray-900 mb-6">
-                  {/* Balance is fetched globally in layout, but we can show it here if we fetched it, or just use transaction history. Wait, we didn't fetch balance in /settings. Let's just say "Manage Funds" */}
                   Manage Funds
                </div>
                <div className="flex gap-3">
@@ -151,6 +180,26 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
+
+          {/* Danger Zone */}
+          <div className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
+            <div className="p-4 border-b border-red-50 flex items-center gap-2 bg-red-50/50">
+               <AlertTriangle className="w-5 h-5 text-red-500" />
+               <h2 className="font-bold text-red-700">Danger Zone</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Reset your account to wipe all active positions, order history, and ledger data, and restore your balance to default.
+              </p>
+              <button 
+                onClick={() => setShowResetModal(true)}
+                className="w-full bg-white border border-red-200 hover:bg-red-50 text-red-600 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Reset Account
+              </button>
+            </div>
+          </div>
+
         </div>
 
         {/* Right Column (Transactions) */}
@@ -249,6 +298,51 @@ export default function ProfilePage() {
                   className={`flex-1 text-white py-2 rounded-lg font-semibold transition-colors ${processing ? 'bg-teal-300' : 'bg-[#00d09c] hover:bg-teal-500'}`}
                 >
                   {processing ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Reset Account Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden border border-red-200">
+            <div className="p-4 border-b border-red-100 bg-red-50 text-red-700 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="font-bold text-lg">Reset Account</h3>
+            </div>
+            <form onSubmit={handleAccountReset} className="p-4 space-y-4">
+              <p className="text-sm text-gray-600">
+                Are you absolutely sure? This will delete all your trade history, active positions, and ledger data. Enter your password to confirm.
+              </p>
+              {resetError && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{resetError}</div>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <input 
+                  type="password" 
+                  required 
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Enter password"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => { setShowResetModal(false); setResetPassword(""); setResetError(""); }}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={resetting}
+                  className={`flex-1 text-white py-2 rounded-lg font-semibold transition-colors ${resetting ? 'bg-red-300' : 'bg-red-600 hover:bg-red-700'}`}
+                >
+                  {resetting ? "Resetting..." : "Wipe Account"}
                 </button>
               </div>
             </form>
