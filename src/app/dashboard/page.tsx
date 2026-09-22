@@ -32,9 +32,9 @@ export default function Dashboard() {
         <button onClick={() => setMobileView("ORDER")} className={`flex-1 py-3 text-xs font-bold transition-colors ${mobileView === "ORDER" ? "text-[#00d09c] border-b-2 border-[#00d09c]" : "text-gray-500"}`}>TRADE</button>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden gap-2 lg:gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 flex-1 overflow-hidden gap-2 lg:gap-4">
         {/* Left Column: Watchlist (25%) */}
-        <div className={`w-full lg:w-1/4 h-full bg-white rounded-xl shadow-sm border border-gray-100 flex-col shrink-0 overflow-hidden ${mobileView === "WATCHLIST" ? "flex" : "hidden lg:flex"}`}>
+        <div className={`h-full bg-white rounded-xl shadow-sm border border-gray-100 flex-col overflow-hidden lg:col-span-1 ${mobileView === "WATCHLIST" ? "flex" : "hidden lg:flex"}`}>
           <Watchlist onSelect={(ticker) => {
             setSelectedTicker(ticker);
             setMobileView("ORDER");
@@ -42,14 +42,14 @@ export default function Dashboard() {
         </div>
 
         {/* Center Column: Chart (50%) */}
-        <div className={`w-full lg:w-2/4 h-full bg-white rounded-xl shadow-sm border border-gray-100 flex-col shrink-0 overflow-hidden ${mobileView === "CHART" ? "flex" : "hidden lg:flex"}`}>
+        <div className={`h-full bg-white rounded-xl shadow-sm border border-gray-100 flex-col overflow-hidden lg:col-span-2 ${mobileView === "CHART" ? "flex" : "hidden lg:flex"}`}>
           <div className="flex-1 p-2">
             <TradingChart ticker={selectedTicker} />
           </div>
         </div>
 
         {/* Right Column: Order Pad & News (25%) */}
-        <div className={`w-full lg:w-1/4 h-full flex-col gap-2 lg:gap-4 shrink-0 overflow-y-auto lg:overflow-hidden ${mobileView === "ORDER" ? "flex" : "hidden lg:flex"}`}>
+        <div className={`h-full flex-col gap-2 lg:gap-4 overflow-y-auto lg:overflow-hidden lg:col-span-1 ${mobileView === "ORDER" ? "flex" : "hidden lg:flex"}`}>
           <div className="flex-none bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <OrderPad ticker={selectedTicker} onTradeSuccess={() => {
                 fetch("/api/portfolio/positions")
