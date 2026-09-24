@@ -135,7 +135,21 @@ export async function POST(request: Request) {
           position.averagePrice = 0;
        }
 
+       // Clear SL and Target if starting a fresh trade
+       if (currentNetQty === 0) {
+           position.stopLoss = undefined;
+           position.target = undefined;
+           position.autoExitAt = undefined;
+       }
+
        position.netQuantity += isBuy ? quantity : -quantity;
+       
+       // Clear SL and Target if position is fully closed
+       if (position.netQuantity === 0) {
+           position.stopLoss = undefined;
+           position.target = undefined;
+           position.autoExitAt = undefined;
+       }
        
        // Update SL and Target if provided
        if (stopLoss) position.stopLoss = stopLoss;

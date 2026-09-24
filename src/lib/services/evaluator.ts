@@ -64,12 +64,19 @@ export async function evaluatePendingOrders(userId: string) {
                 isClosingTrade = true;
              }
 
+             let brokerageFee = 0;
+             if (user.brokeragePlan === 'FLAT_20') brokerageFee = 20;
+
              if (isClosingTrade) {
                  const closedQty = Math.min(Math.abs(currentNetQty), order.quantity);
                  const pnlPerShare = isBuy ? (position.averagePrice - order.price!) : (order.price! - position.averagePrice);
                  const realizedPnL = closedQty * pnlPerShare;
                  position.realizedPnL += realizedPnL;
-                 user.balance += realizedPnL;
+                 
+                 const leverage = position.product === 'MIS' ? 5 : 1;
+                 const marginReleased = (closedQty * position.averagePrice) / leverage;
+                 
+                 user.balance += (realizedPnL + marginReleased);
              }
 
              if (!isClosingTrade) {
@@ -78,14 +85,29 @@ export async function evaluatePendingOrders(userId: string) {
                 position.averagePrice = totalCost / totalQty;
              }
              
+             user.balance -= brokerageFee;
              position.netQuantity += isBuy ? order.quantity : -order.quantity;
           }
 
           await position.save();
           await user.save();
           
+          if (user.brokeragePlan === 'FLAT_20') {
+              const { default: Transaction, TransactionType } = await import('@/models/Transaction');
+              await Transaction.create({
+                  user: user._id,
+                  type: TransactionType.BROKERAGE,
+                  amount: 20,
+                  description: `Brokerage fee for limit order execution of ${order.ticker}`,
+                  balanceAfter: user.balance,
+              });
+          }
+          
           order.status = OrderStatus.EXECUTED;
           order.executionPrice = order.price;
+          if (user.brokeragePlan === 'FLAT_20') {
+             order.brokeragePaid = 20;
+          }
           await order.save();
         }
       } catch (e) {
