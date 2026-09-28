@@ -6,6 +6,7 @@ import { User, Wallet, History, Settings, TrendingDown, TrendingUp, Plus, Minus,
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [dailyStats, setDailyStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Wallet modal state
@@ -23,14 +24,17 @@ export default function ProfilePage() {
 
   const fetchData = async () => {
     try {
-      const [userRes, txRes] = await Promise.all([
+      const [userRes, txRes, statsRes] = await Promise.all([
         fetch("/api/profile/settings"),
-        fetch("/api/profile/transactions")
+        fetch("/api/profile/transactions"),
+        fetch("/api/profile/daily-stats")
       ]);
       const userData = await userRes.json();
       const txData = await txRes.json();
+      const statsData = await statsRes.json();
       if (userData.user) setUser(userData.user);
       if (txData.transactions) setTransactions(txData.transactions);
+      if (statsData.stats) setDailyStats(statsData.stats);
     } catch (e) {
       console.error(e);
     } finally {
@@ -202,17 +206,95 @@ export default function ProfilePage() {
 
         </div>
 
-        {/* Right Column (Transactions) */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-full">
+        {/* Right Column (Transactions & Performance) */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          
+          {/* Daily Performance Tracking */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-4 border-b border-gray-50 flex items-center gap-2">
+               <TrendingUp className="w-5 h-5 text-[#00d09c]" />
+               <h2 className="font-bold text-gray-800">Daily Performance Tracking</h2>
+            </div>
+            <div className="p-4 bg-gray-50 flex gap-4 text-sm border-b border-gray-100 overflow-x-auto hide-scrollbar">
+               <div className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm flex-1 min-w-[120px]">
+                 <div className="text-gray-500 mb-1">Win Rate</div>
+                 <div className="font-bold text-lg text-gray-900">
+                   {dailyStats.length > 0 
+                     ? Math.round((dailyStats.filter(s => s.endOfDayEquity - s.startOfDayEquity > 0).length / dailyStats.length) * 100)
+                     : 0}%
+                 </div>
+               </div>
+               <div className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm flex-1 min-w-[120px]">
+                 <div className="text-gray-500 mb-1">Total Days</div>
+                 <div className="font-bold text-lg text-gray-900">{dailyStats.length}</div>
+               </div>
+               <div className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm flex-1 min-w-[120px]">
+                 <div className="text-gray-500 mb-1">Avg Margin Used</div>
+                 <div className="font-bold text-lg text-gray-900">
+                   ₹{dailyStats.length > 0 
+                     ? (dailyStats.reduce((sum, s) => sum + s.marginUsed, 0) / dailyStats.length).toLocaleString('en-IN', { maximumFractionDigits: 0 }) 
+                     : 0}
+                 </div>
+               </div>
+            </div>
+            <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-white sticky top-0 text-gray-500 text-xs uppercase font-semibold border-b border-gray-100 z-10">
+                  <tr>
+                    <th className="px-6 py-3">Date</th>
+                    <th className="px-6 py-3 text-right">Start Equity</th>
+                    <th className="px-6 py-3 text-right">End Equity</th>
+                    <th className="px-6 py-3 text-right">Margin Used</th>
+                    <th className="px-6 py-3 text-right">Day PnL</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {dailyStats.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                        No performance history found yet. Check back tomorrow!
+                      </td>
+                    </tr>
+                  ) : (
+                    dailyStats.map((stat: any) => {
+                      const pnl = stat.endOfDayEquity - stat.startOfDayEquity;
+                      return (
+                        <tr key={stat._id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">
+                            {stat.dateString}
+                          </td>
+                          <td className="px-6 py-4 text-right text-gray-700">
+                            ₹{stat.startOfDayEquity.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-gray-900">
+                            ₹{stat.endOfDayEquity.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4 text-right text-gray-600">
+                            ₹{stat.marginUsed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </td>
+                          <td className={`px-6 py-4 text-right font-bold ${
+                            pnl > 0 ? 'text-[#00d09c]' : pnl < 0 ? 'text-red-500' : 'text-gray-900'
+                          }`}>
+                            {pnl > 0 ? '+' : ''}₹{pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 border-b border-gray-50 flex items-center gap-2">
                <History className="w-5 h-5 text-gray-500" />
                <h2 className="font-bold text-gray-800">Passbook & Ledger</h2>
             </div>
             
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                <thead className="bg-gray-50 sticky top-0 text-gray-500 text-xs uppercase font-semibold border-b border-gray-100 z-10">
                   <tr>
                     <th className="px-6 py-3">Date</th>
                     <th className="px-6 py-3">Description</th>

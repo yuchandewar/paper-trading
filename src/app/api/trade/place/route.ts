@@ -83,15 +83,14 @@ export async function POST(request: Request) {
 
     // 3. Handle Limit Orders
     if (orderType === OrderType.LIMIT) {
-       // ... existing limit logic ...
-       // (Not modifying limit logic right now for SL/target, keeping it simple for market)
+       let limitMarginNeeded = 0;
        if (!isClosingTrade || Math.abs(quantity) > Math.abs(currentNetQty)) {
            const qtyToOpen = isClosingTrade ? quantity - Math.abs(currentNetQty) : quantity;
-           const marginNeeded = (qtyToOpen * price) / leverage;
-           if (user.balance < marginNeeded) {
+           limitMarginNeeded = (qtyToOpen * price) / leverage;
+           if (user.balance < limitMarginNeeded) {
                return NextResponse.json({ error: 'Insufficient margin for limit order' }, { status: 400 });
            }
-           user.balance -= marginNeeded;
+           user.balance -= limitMarginNeeded;
        }
        
        await user.save();
@@ -105,7 +104,7 @@ export async function POST(request: Request) {
            quantity,
            price: price,
            status: OrderStatus.PENDING,
-           marginBlocked: !isClosingTrade ? requiredMargin : 0,
+           marginBlocked: limitMarginNeeded,
        });
        await order.save();
 

@@ -80,6 +80,21 @@ export async function evaluatePendingOrders(userId: string) {
              }
 
              if (!isClosingTrade) {
+                const leverage = position.product === 'MIS' ? 5 : 1;
+                const marginNeeded = (order.quantity * order.price!) / leverage;
+                
+                // If it was placed as a closing order, marginBlocked was 0, but now it acts as opening.
+                if (order.marginBlocked < marginNeeded) {
+                   const extraMarginNeeded = marginNeeded - order.marginBlocked;
+                   if (user.balance < extraMarginNeeded) {
+                       order.status = OrderStatus.REJECTED;
+                       order.rejectReason = 'Insufficient margin to execute limit order (position was already closed)';
+                       await order.save();
+                       continue;
+                   }
+                   user.balance -= extraMarginNeeded;
+                }
+
                 const totalQty = Math.abs(currentNetQty) + order.quantity;
                 const totalCost = (Math.abs(currentNetQty) * position.averagePrice) + (order.quantity * order.price!);
                 position.averagePrice = totalCost / totalQty;

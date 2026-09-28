@@ -49,20 +49,35 @@ export default async function DashboardLayout({
     }
   }
   
-  // Calculate Today's Realized PnL (from positions modified today)
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const updatedPositions = await Position.find({ 
-    user: session.user.id, 
-    updatedAt: { $gte: startOfDay } 
-  });
+  const currentTotalEquity = availableMargin + investedMargin + liveUnrealizedPnL;
   
-  let todayRealizedPnL = 0;
-  for (const pos of updatedPositions) {
-    todayRealizedPnL += pos.realizedPnL;
+  // Track Daily Stats and Calculate Day PnL
+  const today = new Date();
+  const dateString = today.toISOString().split('T')[0];
+  
+  const { default: DailyStat } = await import('@/models/DailyStat');
+  let dailyStat = await DailyStat.findOne({ user: session.user.id, dateString });
+  
+  if (!dailyStat) {
+    // If no stat exists for today, fetch the last known endOfDayEquity
+    const lastStat = await DailyStat.findOne({ user: session.user.id }).sort({ dateString: -1 });
+    const startOfDayEquity = lastStat ? lastStat.endOfDayEquity : currentTotalEquity;
+    
+    dailyStat = await DailyStat.create({
+      user: session.user.id,
+      dateString,
+      startOfDayEquity,
+      endOfDayEquity: currentTotalEquity,
+      marginUsed: investedMargin
+    });
+  } else {
+    // Update the end of day equity and margin continuously
+    dailyStat.endOfDayEquity = currentTotalEquity;
+    dailyStat.marginUsed = investedMargin;
+    await dailyStat.save();
   }
   
-  const totalPnL = liveUnrealizedPnL + todayRealizedPnL;
+  const totalPnL = currentTotalEquity - dailyStat.startOfDayEquity;
   const totalBalance = availableMargin + investedMargin;
 
   return (
